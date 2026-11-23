@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "223162156713",
+    "project_id": "jobcardapp-95884",
+    "storage_bucket": "jobcardapp-95884.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:223162156713:android:8eaf77b8fa8318377f0bb8",
+        "android_client_info": {
+          "package_name": "com.example.job_card_selection_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrEYJvN_I7dnMXrHuWYhEYFkY4z1bcLB0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
