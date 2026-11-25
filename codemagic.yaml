@@ -5,7 +5,7 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Create Android project and configure Firebase
+      - name: Create Android project and fix code
         script: |
           flutter create . --org com.example --project-name job_card_selection_app
           cp google-services.json android/app/google-services.json
@@ -22,17 +22,128 @@ workflows:
                   txt = open(path).read()
                   txt = re.sub(r"(id[\(\s]+[\"\x27]com\.android\.application[\"\x27]\)?)", r"\1\n    id(" + q + "com.google.gms.google-services" + q + ")", txt)
                   open(path, "w").write(txt)
-          for root, dirs, files in os.walk("lib"):
-              for f in files:
-                  if f == "firestore_service.dart":
-                      p = os.path.join(root, f)
-                      t = open(p).read()
-                      t = re.sub(r"onProgress\s*\([^)]*\)\s*;", "", t)
-                      open(p, "w").write(t)
           '
+          cat << 'EOF' > lib/core/services/firestore_service.dart
+          import 'package:cloud_firestore/cloud_firestore.dart';
+          import '../models/job_card_model.dart';
+          import '../models/user_model.dart';
+
+          class FirestoreService {
+            final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+            String normalizeDocId(String jobCardNumber) {
+              return jobCardNumber.trim().replaceAll('/', '_');
+            }
+
+            Future uploadMasterJobCards(List records, [Function? onProgress]) async {
+              int addedCount = 0;
+              int skippedDuplicateCount = 0;
+              final existingSnapshot = await _db.collection('job_cards').get();
+              final existingIds = existingSnapshot.docs.map((doc) => doc.id).toSet();
+              final newRecordsToInsert = [];
+
+              for (var record in records) {
+                final cardNo = record['jobCardNumber'].toString();
+                final docId = normalizeDocId(cardNo);
+                if (existingIds.contains(docId)) {
+                  skippedDuplicateCount++;
+                } else {
+                  existingIds.add(docId);
+                  newRecordsToInsert.add(record);
+                }
+              }
+
+              const int batchSize = 450;
+              final int total = newRecordsToInsert.length;
+
+              for (int i = 0; i < total; i += batchSize) {
+                final batch = _db.batch();
+                final end = (i + batchSize < total) ? i + batchSize : total;
+                final chunk = newRecordsToInsert.sublist(i, end);
+
+                for (var item in chunk) {
+                  final cardNo = item['jobCardNumber'].toString();
+                  final name = item['name'].toString();
+                  final docId = normalizeDocId(cardNo);
+                  final docRef = _db.collection('job_cards').doc(docId);
+
+                  batch.set(docRef, {
+                    'jobCardNumber': cardNo,
+                    'name': name,
+                    'searchKey': '${cardNo.toLowerCase()} ${name.toLowerCase()}',
+                    'createdAt': FieldValue.serverTimestamp(),
+                    'updatedAt': FieldValue.serverTimestamp(),
+                  });
+                  addedCount++;
+                }
+                await batch.commit();
+                if (onProgress != null && total > 0) {
+                  onProgress(end / total);
+                }
+              }
+              return {'added': addedCount, 'duplicates': skippedDuplicateCount};
+            }
+
+            Future saveSingleJobCard(String jobCardNumber, String name, {bool isEdit = false}) async {
+              final docId = normalizeDocId(jobCardNumber);
+              final docRef = _db.collection('job_cards').doc(docId);
+              if (!isEdit) {
+                final exists = await docRef.get();
+                if (exists.exists) {
+                  throw Exception('এই Job Card Number ইতিমধ্যে ডাটাবেসে আছে!');
+                }
+              }
+              await docRef.set({
+                'jobCardNumber': jobCardNumber.trim(),
+                'name': name.trim(),
+                'searchKey': '${jobCardNumber.trim().toLowerCase()} ${name.trim().toLowerCase()}',
+                if (!isEdit) 'createdAt': FieldValue.serverTimestamp(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
+            }
+
+            Future deleteJobCard(String docId) async {
+              await _db.collection('job_cards').doc(docId).delete();
+            }
+
+            Future toggleUserStatus(String uid, bool currentStatus) async {
+              await _db.collection('users').doc(uid).update({'isActive': !currentStatus});
+            }
+
+            Future toggleSelection({
+              required UserModel user,
+              required JobCardModel card,
+              required bool isSelected,
+            }) async {
+              final safeCardId = normalizeDocId(card.jobCardNumber);
+              final selectionDocId = '${user.uid}_$safeCardId';
+              final selectionRef = _db.collection('selections').doc(selectionDocId);
+              final userRef = _db.collection('users').doc(user.uid);
+              final batch = _db.batch();
+
+              if (isSelected) {
+                batch.set(selectionRef, {
+                  'uid': user.uid,
+                  'userId': user.userId,
+                  'jobCardNumber': card.jobCardNumber,
+                  'name': card.name,
+                  'selectedAt': FieldValue.serverTimestamp(),
+                });
+                batch.update(userRef, {'selectedCount': FieldValue.increment(1)});
+              } else {
+                batch.delete(selectionRef);
+                batch.update(userRef, {'selectedCount': FieldValue.increment(-1)});
+              }
+              await batch.commit();
+            }
+          }
+          EOF
       - name: Get Flutter packages
         script: |
           flutter pub get
+      - name: Quick code check
+        script: |
+          flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Build release APK
         script: |
           flutter build apk --release
