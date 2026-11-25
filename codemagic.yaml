@@ -9,13 +9,21 @@ workflows:
         script: |
           flutter create . --org com.example --project-name job_card_selection_app
           cp google-services.json android/app/google-services.json
-          if [ -f "android/settings.gradle.kts" ]; then
-            sed -i 's/id("com.android.application")/id("com.android.application")\n    id("com.google.gms.google-services") version "4.4.2" apply false/' android/settings.gradle.kts
-            sed -i 's/id("com.android.application")/id("com.android.application")\n    id("com.google.gms.google-services")/' android/app/build.gradle.kts
-          elif [ -f "android/settings.gradle" ]; then
-            sed -i 's/id "com.android.application"/id "com.android.application"\n    id "com.google.gms.google-services" version "4.4.2" apply false/' android/settings.gradle
-            sed -i 's/id "com.android.application"/id "com.android.application"\n    id "com.google.gms.google-services"/' android/app/build.gradle
-          fi
+          python3 -c '
+          import os
+          for path in ["android/settings.gradle.kts", "android/settings.gradle"]:
+              if os.path.exists(path):
+                  txt = open(path).read()
+                  txt = txt.replace("id(\"com.android.application\")", "id(\"com.android.application\")\n    id(\"com.google.gms.google-services\") version \"4.4.2\" apply false")
+                  txt = txt.replace("id \"com.android.application\"", "id \"com.android.application\"\n    id \"com.google.gms.google-services\" version \"4.4.2\" apply false")
+                  open(path, "w").write(txt)
+          for path in ["android/app/build.gradle.kts", "android/app/build.gradle"]:
+              if os.path.exists(path):
+                  txt = open(path).read()
+                  txt = txt.replace("id(\"com.android.application\")", "id(\"com.android.application\")\n    id(\"com.google.gms.google-services\")")
+                  txt = txt.replace("id \"com.android.application\"", "id \"com.android.application\"\n    id \"com.google.gms.google-services\"")
+                  open(path, "w").write(txt)
+          '
       - name: Get Flutter packages
         script: |
           flutter pub get
