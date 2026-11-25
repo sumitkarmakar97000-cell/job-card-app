@@ -22,6 +22,13 @@ workflows:
                   txt = open(path).read()
                   txt = re.sub(r"(id[\(\s]+[\"\x27]com\.android\.application[\"\x27]\)?)", r"\1\n    id(" + q + "com.google.gms.google-services" + q + ")", txt)
                   open(path, "w").write(txt)
+          for root, dirs, files in os.walk("lib"):
+              for f in files:
+                  if f == "firestore_service.dart":
+                      p = os.path.join(root, f)
+                      t = open(p).read()
+                      t = re.sub(r"onProgress\s*\([^)]*\)\s*;", "", t)
+                      open(p, "w").write(t)
           '
       - name: Get Flutter packages
         script: |
