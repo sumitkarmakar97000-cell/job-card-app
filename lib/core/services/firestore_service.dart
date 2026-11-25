@@ -11,7 +11,7 @@ class FirestoreService {
 
   Future> uploadMasterJobCards(
     List> records,
-    void Function(double progress) onProgress,
+    Function(double) onProgress,
   ) async {
     int addedCount = 0;
     int skippedDuplicateCount = 0;
@@ -59,7 +59,9 @@ class FirestoreService {
       }
 
       await batch.commit();
-      onProgress(end / total);
+      if (total > 0) {
+        onProgress(end / total);
+      }
     }
 
     return {
