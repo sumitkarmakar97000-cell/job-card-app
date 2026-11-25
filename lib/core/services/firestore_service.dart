@@ -11,7 +11,7 @@ class FirestoreService {
 
   Future> uploadMasterJobCards(
     List> records,
-    Function(double progress) onProgress,
+    void Function(double progress) onProgress,
   ) async {
     int addedCount = 0;
     int skippedDuplicateCount = 0;
