@@ -1,0 +1,26 @@
+workflows:
+  android-apk-workflow:
+    name: Build Android APK
+    max_build_duration: 60
+    environment:
+      flutter: stable
+    scripts:
+      - name: Create Android project and configure Firebase
+        script: |
+          flutter create . --org com.example --project-name job_card_selection_app
+          cp google-services.json android/app/google-services.json
+          if [ -f "android/settings.gradle.kts" ]; then
+            sed -i 's/id("com.android.application")/id("com.android.application")\n    id("com.google.gms.google-services") version "4.4.2" apply false/' android/settings.gradle.kts
+            sed -i 's/id("com.android.application")/id("com.android.application")\n    id("com.google.gms.google-services")/' android/app/build.gradle.kts
+          elif [ -f "android/settings.gradle" ]; then
+            sed -i 's/id "com.android.application"/id "com.android.application"\n    id "com.google.gms.google-services" version "4.4.2" apply false/' android/settings.gradle
+            sed -i 's/id "com.android.application"/id "com.android.application"\n    id "com.google.gms.google-services"/' android/app/build.gradle
+          fi
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+      - name: Build release APK
+        script: |
+          flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
