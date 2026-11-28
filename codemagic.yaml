@@ -152,6 +152,7 @@ workflows:
           EOF
       - name: Get Flutter packages
         script: |
+          flutter pub upgrade --major-versions
           flutter pub get
       - name: Quick code check
         script: |
