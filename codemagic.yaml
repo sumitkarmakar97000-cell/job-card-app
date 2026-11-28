@@ -5,7 +5,7 @@ workflows:
     environment:
       flutter: stable
     scripts:
-      - name: Create Android project and fix code
+      - name: Create Android project and fix all Dart files
         script: |
           flutter create . --org com.example --project-name job_card_selection_app
           cp google-services.json android/app/google-services.json
@@ -22,6 +22,17 @@ workflows:
                   txt = open(path).read()
                   txt = re.sub(r"(id[\(\s]+[\"\x27]com\.android\.application[\"\x27]\)?)", r"\1\n    id(" + q + "com.google.gms.google-services" + q + ")", txt)
                   open(path, "w").write(txt)
+          for root, dirs, files in os.walk("lib"):
+              for f in files:
+                  if f.endswith(".dart"):
+                      p = os.path.join(root, f)
+                      t = open(p).read()
+                      t = re.sub(r"\bFuture\s*>", "Future<dynamic>", t)
+                      t = re.sub(r"\bList\s*>", "List<dynamic>", t)
+                      t = re.sub(r"\bSet\s*>", "Set<dynamic>", t)
+                      t = re.sub(r"\bMap\s*>", "Map<String, dynamic>", t)
+                      t = re.sub(r"\bStream\s*>", "Stream<dynamic>", t)
+                      open(p, "w").write(t)
           '
           cat << 'EOF' > lib/core/services/firestore_service.dart
           import 'package:cloud_firestore/cloud_firestore.dart';
