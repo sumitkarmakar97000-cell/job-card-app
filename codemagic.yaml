@@ -8,6 +8,7 @@ workflows:
       - name: Create Android project and fix all Dart files
         script: |
           flutter create . --org com.example --project-name job_card_selection_app
+          rm -rf test
           cp google-services.json android/app/google-services.json
           python3 -c '
           import os, re
